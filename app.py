@@ -1,132 +1,60 @@
-import streamlit as st
-import pandas as pd
+# This file must work standing ALONE on Streamlit Cloud (no Colab, no Drive).
+# Upload Lab04_hk_car_price.csv in the SAME GitHub folder as this file.
 
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder
+import pandas as pd
+import streamlit as st
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 
-# Page title
-st.title("HK Used Car Price Estimator")
-
-# Load dataset
-df = pd.read_csv("Lab04_hk_car_price.csv")
-
-# Features used in the improved model
-FEATURES = [
-    "Manufacture_Year",
+# CHANGE THIS LINE. Use your own column names. Do not leave the words PASTE / HERE.
+# Do not add Displacement_cc. Empty engine cc will crash training.
+FEATURES = ["Manufacture_Year",
     "Mileage_km",
     "Brand",
     "Horsepower_PS",
     "Car_Age_At_Sale",
-    "Displacement_cc"
-]
+    "Displacement_cc"]         # Example: ["Manufacture_Year", "Mileage_km"]
+RANDOM_STATE = 42   # public demo — does not need to match your Student ID
 
-# Target column
-TARGET = "Price_HKD"
+@st.cache_data
+def load_and_train():
+    df = pd.read_csv("Lab04_hk_car_price.csv")
+    X_all = df[FEATURES].copy()
+    y_all = df["Price_HKD"]
 
-# Prepare training data
-X_all = df[FEATURES]
-y_all = df[TARGET]
+    # Brand is text. Split it into number columns before fit().
+    text_cols = [c for c in FEATURES if not pd.api.types.is_numeric_dtype(X_all[c])]
+    if text_cols:
+        X_all = pd.get_dummies(X_all, columns=text_cols, drop_first=True)
+        X_all = X_all.astype(float)
 
-# Numeric columns
-numeric_features = [
-    "Manufacture_Year",
-    "Mileage_km",
-    "Horsepower_PS",
-    "Car_Age_At_Sale",
-    "Displacement_cc"
-]
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_all, y_all, test_size=0.2, random_state=RANDOM_STATE
+    )
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    return df, model, list(model.feature_names_in_)
 
-# Categorical columns
-categorical_features = ["Brand"]
+df, model, model_columns = load_and_train()
 
-# Handle numeric missing values
-numeric_transformer = Pipeline(
-    steps=[
-        ("imputer", SimpleImputer(strategy="median"))
-    ]
-)
+st.title("HK Used Car Price Estimator — ZekiLai_250383674_CA2 Prototype")                  #<- Change your name here!!!=======================================
+st.write("Predicts **resale price (HKD)** from real Hong Kong Motor City transactions. This is a quote ballpark — not an official valuation form.")
 
-# Handle categorical missing values and encode text
-categorical_transformer = Pipeline(
-    steps=[
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore"))
-    ]
-)
+# Sliders and brand menus are built from FEATURES. Do not delete this loop.
+inputs = {}
+for col in FEATURES:
+    if not pd.api.types.is_numeric_dtype(df[col]):
+        inputs[col] = st.selectbox(col, sorted(df[col].dropna().unique().tolist()))
+    else:
+        inputs[col] = st.slider(
+            col, float(df[col].min()), float(df[col].max()), float(df[col].mean())
+        )
 
-# Combine preprocessing
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", numeric_transformer, numeric_features),
-        ("cat", categorical_transformer, categorical_features)
-    ]
-)
-
-# Create model pipeline
-model = Pipeline(
-    steps=[
-        ("preprocessor", preprocessor),
-        ("regressor", LinearRegression())
-    ]
-)
-
-# Train model
-model.fit(X_all, y_all)
-
-# Input section
-st.header("Enter Vehicle Information")
-
-brand = st.selectbox(
-    "Brand",
-    sorted(df["Brand"].dropna().unique())
-)
-
-manufacture_year = st.number_input(
-    "Manufacture Year",
-    min_value=2000,
-    max_value=2026,
-    value=2020
-)
-
-mileage = st.number_input(
-    "Mileage (km)",
-    min_value=0,
-    value=50000
-)
-
-horsepower = st.number_input(
-    "Horsepower (PS)",
-    min_value=1,
-    value=150
-)
-
-car_age = st.number_input(
-    "Car Age At Sale",
-    min_value=0,
-    value=5
-)
-
-displacement = st.number_input(
-    "Displacement (cc)",
-    min_value=0,
-    value=2000
-)
-
-# Predict button
-if st.button("Predict Price"):
-
-    input_df = pd.DataFrame({
-        "Manufacture_Year": [manufacture_year],
-        "Mileage_km": [mileage],
-        "Brand": [brand],
-        "Horsepower_PS": [horsepower],
-        "Car_Age_At_Sale": [car_age],
-        "Displacement_cc": [displacement]
-    })
-
-    predicted_price = model.predict(input_df)[0]
-
-    st.success(f"Estimated Resale Price: HK${predicted_price:,.0f}")
+if st.button("Estimate Price"):
+    row = pd.DataFrame([inputs])
+    text_cols = [c for c in FEATURES if not pd.api.types.is_numeric_dtype(df[c])]
+    if text_cols:
+        row = pd.get_dummies(row, columns=text_cols)
+    row = row.reindex(columns=model_columns, fill_value=0)
+    price = model.predict(row)[0]
+    st.success(f"Estimated price: HK${price:,.0f}")
