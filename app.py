@@ -1,3 +1,4 @@
+%%writefile app.py
 # This file must work standing ALONE on Streamlit Cloud (no Colab, no Drive).
 # Upload Lab04_hk_car_price.csv in the SAME GitHub folder as this file.
 
@@ -8,12 +9,13 @@ from sklearn.linear_model import LinearRegression
 
 # CHANGE THIS LINE. Use your own column names. Do not leave the words PASTE / HERE.
 # Do not add Displacement_cc. Empty engine cc will crash training.
-FEATURES = ["Manufacture_Year",
-    "Mileage_km",
-    "Brand",
-    "Horsepower_PS",
-    "Car_Age_At_Sale",
-    "Displacement_cc"]         # Example: ["Manufacture_Year", "Mileage_km"]
+FEATURES = [
+"Manufacture_Year",
+"Mileage_km",
+"Brand",
+"Horsepower_PS",
+"Car_Age_At_Sale"
+]         # Example: ["Manufacture_Year", "Mileage_km"]
 RANDOM_STATE = 42   # public demo — does not need to match your Student ID
 
 @st.cache_data
