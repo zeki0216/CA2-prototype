@@ -1,4 +1,3 @@
-%%writefile app.py
 # This file must work standing ALONE on Streamlit Cloud (no Colab, no Drive).
 # Upload Lab04_hk_car_price.csv in the SAME GitHub folder as this file.
 
